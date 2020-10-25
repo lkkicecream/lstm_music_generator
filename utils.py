@@ -8,6 +8,8 @@ from music21 import converter, instrument, note, chord, stream  # converter负�
 from music21.chord import Chord
 from music21.note import Note
 
+import generate
+import network
 
 def get_notes():
     """
@@ -80,3 +82,26 @@ def create_music(prediction):  # 生成音乐函数，训练不用
 
     # 写入midi文件
     midi_stream.write('midi', fp='output.mid')  # 最终输出的文件名是output.mid，格式是mid
+
+# 加载用于训练神经网络的音乐数据
+def produce():
+    with open('data/notes', 'rb') as filepath:
+        notes = pickle.load(filepath)
+    # 得到所有音调的名字
+    pitch_names = sorted(set(item for item in notes))
+    # 得到所有不重复（因为用了set）的音调数目
+    num_pitch = len(set(notes))
+ 
+    network_input, normalized_input = generate.prepare_sequences(notes, pitch_names, num_pitch)
+    # 载入之前训练时最好的参数文件（最好用 loss 最小 的那一个参数文件，
+    # 记得要把它的名字改成 best-weights.hdf5 ），来生成神经网络模型
+    model = network.network_model(normalized_input, num_pitch, "/Users/ren/Desktop/best-weights.hdf5")
+ 
+    # 用神经网络来生成音乐数据
+    prediction = produce_notes(model, network_input, pitch_names, num_pitch)
+ 
+    # 用预测的音乐数据生成 MIDI 文件，再转换成 MP3
+    create_music(prediction)
+
+if __name__ == '__main__':
+    produce()
