@@ -17,3 +17,5 @@ def combineRhythm(beats:int=1):
         beats -= rythem.index(randList1)
     return combList
 # print(combineRythem(4))
+
+#print(type(rythem[1][0][0]))

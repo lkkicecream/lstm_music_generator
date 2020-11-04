@@ -22,23 +22,27 @@ def get_notes():
     """
     notes = []
     for midi_file in glob.glob("music_midi/*.mid"):
-        # 读取music_midi文件夹中所有的mid文件,file表示每一个文件
-        stream = converter.parse(midi_file)  # midi文件的读取，解析，输出stream的流类型
+        print(midi_file)
+        try:
+            # 读取music_midi文件夹中所有的mid文件,file表示每一个文件
+            stream = converter.parse(midi_file)  # midi文件的读取，解析，输出stream的流类型
 
-        # 获取所有的乐器部分，开始测试的都是单轨的
-        parts = instrument.partitionByInstrument(stream)
-        if parts:  # 如果有乐器部分，取第一个乐器部分
-            notes_to_parse = parts.parts[0].recurse()  # 递归
-        else:
-            notes_to_parse = stream.flat.notes  # 纯音符组成
-        for element in notes_to_parse:  # notes本身不是字符串类型
-            # 如果是note类型，取它的音高(pitch)
-            if isinstance(element, note.Note):
-                # 格式例如：E6
-                notes.append(str(element.pitch))
-            elif isinstance(element, chord.Chord):
-                # 转换后格式：45.21.78(midi_number)
-                notes.append('.'.join(str(n) for n in element.normalOrder))  # 用.来分隔，把n按整数排序
+            # 获取所有的乐器部分，开始测试的都是单轨的
+            parts = instrument.partitionByInstrument(stream)
+            if parts:  # 如果有乐器部分，取第一个乐器部分
+                notes_to_parse = parts.parts[0].recurse()  # 递归
+            else:
+                notes_to_parse = stream.flat.notes  # 纯音符组成
+            for element in notes_to_parse:  # notes本身不是字符串类型
+                # 如果是note类型，取它的音高(pitch)
+                if isinstance(element, note.Note):
+                    # 格式例如：E6
+                    notes.append(str(element.pitch))
+                elif isinstance(element, chord.Chord):
+                    # 转换后格式：45.21.78(midi_number)
+                    notes.append('.'.join(str(n) for n in element.normalOrder))  # 用.来分隔，把n按整数排序
+        except Exception as e:
+            print(e)
     # 如果 data 目录不存在，创建此目录
     if not os.path.exists("data"):
         os.mkdir("data")
@@ -52,7 +56,6 @@ def create_music(prediction, count='weights-99'):  # 生成音乐函数，训练
     """ 用神经网络预测的音乐数据来生成mid文件 """
     offset = 0  # 偏移，防止数据覆盖
     output_notes_1 = []
-    output_notes_2 = []
     mid = MidiFile()
     track = MidiTrack()
     #track2 = MidiTrack()
@@ -114,22 +117,13 @@ def create_music(prediction, count='weights-99'):  # 生成音乐函数，训练
     # 创建音乐流(stream)
     midi_stream = stream.Stream(output_notes_1)  # 把上面的循环输出结果传到流
     # 写入midi文件
-    midi_stream.write('midi', fp='./beethoven_output/output_original' + count +'.mid')  # 最终输出的文件名是output.mid，格式是mid
+    midi_stream.write('midi', fp='./bach_output/output_original_offset_half.mid')  # 最终输出的文件名是output.mid，格式是mid
 
-    '''旋律添加 rhythm'''
-    beats = []
-    rythem = []
-    index = 0
+
+    '''每次為一輛改1'''
     output_notes_1 = []
-    
+    offset = 0
     for data in prediction:
-        if index == len(rythem):
-            beats = random.randint(1,17)
-            rythem = mt.combineRhythm(beats)
-            index = 0
-
-        note_lenght = rythem[index]
-        index += 1
         # 如果是chord格式：45.21.78
         if ('.' in data) or data.isdigit():  # data中有.或者有数字
             note_in_chord = data.split('.')  # 用.分隔和弦中的每个音
@@ -148,12 +142,117 @@ def create_music(prediction, count='weights-99'):  # 生成音乐函数，训练
             new_note.storedInstrument = instrument.Piano()  # 乐器用钢琴
             output_notes_1.append(new_note)  # 把new_note传到output_notes中
         # 每次迭代都将偏移增加，防止交叠覆盖
-        offset += note_lenght
+        offset += 1.0
 
     # 创建音乐流(stream)
     midi_stream = stream.Stream(output_notes_1)  # 把上面的循环输出结果传到流
     # 写入midi文件
-    midi_stream.write('midi', fp='./beethoven_output/output_add_rythem' + count +'.mid')  # 最终输出的文件名是output.mid，格式是mid
+    midi_stream.write('midi', fp='./bach_output/output_original_offset_normal.mid')  # 最终输出的文件名是output.mid，格式是mid
+    
+    '''每次為一輛改1.5'''
+    output_notes_1 = []
+    offset = 0
+    for data in prediction:
+        # 如果是chord格式：45.21.78
+        if ('.' in data) or data.isdigit():  # data中有.或者有数字
+            note_in_chord = data.split('.')  # 用.分隔和弦中的每个音
+            notes = []  # notes列表接收单音
+            for current_note in note_in_chord:
+                new_note = note.Note(int(current_note))  # 把当前音符化成整数，在对应midi_number转换成note
+                new_note.storedInstrument = instrument.Piano()  # 乐器用钢琴
+                notes.append(new_note)
+            new_chord = chord.Chord(notes)  # 再把notes中的音化成新的和弦
+            new_chord.offset = offset  # 初试定的偏移给和弦的偏移
+            output_notes_1.append(new_chord)  # 把转化好的和弦传到output_notes中
+        # 是note格式：
+        else:
+            new_note = note.Note(data)  # note直接可以把data变成新的note
+            new_note.offset = offset
+            new_note.storedInstrument = instrument.Piano()  # 乐器用钢琴
+            output_notes_1.append(new_note)  # 把new_note传到output_notes中
+        # 每次迭代都将偏移增加，防止交叠覆盖
+        offset += 1.5
+
+    # 创建音乐流(stream)
+    midi_stream = stream.Stream(output_notes_1)  # 把上面的循环输出结果传到流
+    # 写入midi文件
+    midi_stream.write('midi', fp='./bach_output/output_original_offset_dot.mid')  # 最终输出的文件名是output.mid，格式是mid
+
+    '''每次為一輛改2'''
+    output_notes_1 = []
+    offset = 0
+    for data in prediction:
+        # 如果是chord格式：45.21.78
+        if ('.' in data) or data.isdigit():  # data中有.或者有数字
+            note_in_chord = data.split('.')  # 用.分隔和弦中的每个音
+            notes = []  # notes列表接收单音
+            for current_note in note_in_chord:
+                new_note = note.Note(int(current_note))  # 把当前音符化成整数，在对应midi_number转换成note
+                new_note.storedInstrument = instrument.Piano()  # 乐器用钢琴
+                notes.append(new_note)
+            new_chord = chord.Chord(notes)  # 再把notes中的音化成新的和弦
+            new_chord.offset = offset  # 初试定的偏移给和弦的偏移
+            output_notes_1.append(new_chord)  # 把转化好的和弦传到output_notes中
+        # 是note格式：
+        else:
+            new_note = note.Note(data)  # note直接可以把data变成新的note
+            new_note.offset = offset
+            new_note.storedInstrument = instrument.Piano()  # 乐器用钢琴
+            output_notes_1.append(new_note)  # 把new_note传到output_notes中
+        # 每次迭代都将偏移增加，防止交叠覆盖
+        offset += 2.0
+
+    # 创建音乐流(stream)
+    midi_stream = stream.Stream(output_notes_1)  # 把上面的循环输出结果传到流
+    # 写入midi文件
+    midi_stream.write('midi', fp='./bach_output/output_original_offset_double.mid')  # 最终输出的文件名是output.mid，格式是mid
+
+    '''旋律添加 rhythm'''
+    beats = []
+    rythem = []
+    index = 0
+    output_notes_1 = []
+    offset = 0
+    
+    for data in prediction:
+        print(data, end=' ')
+
+        if index == len(rythem):
+            beats = random.randint(1,17)
+            rythem = mt.combineRhythm(beats)
+            index = 0
+
+        note_lenght = rythem[index]
+        print(note_lenght)
+        index += 1
+        # 如果是chord格式：45.21.78
+        if ('.' in data) or data.isdigit():  # data中有.或者有数字
+            note_in_chord = data.split('.')  # 用.分隔和弦中的每个音
+            notes = []  # notes列表接收单音
+            for current_note in note_in_chord:
+                new_note = note.Note(int(current_note))  # 把当前音符化成整数，在对应midi_number转换成note
+                new_note.storedInstrument = instrument.Piano()  # 乐器用钢琴
+                notes.append(new_note)
+            new_chord = chord.Chord(notes)  # 再把notes中的音化成新的和弦
+            new_chord.offset = offset  # 初试定的偏移给和弦的偏移
+            output_notes_1.append(new_chord)  # 把转化好的和弦传到output_notes中
+        # 是note格式：
+        else:
+            new_note = note.Note(data, ql=note_lenght)  # note直接可以把data变成新的note
+            new_note.offset = offset
+            new_note.storedInstrument = instrument.Piano()  # 乐器用钢琴
+            output_notes_1.append(new_note)  # 把new_note传到output_notes中
+        
+        # 每次迭代都将偏移增加，防止交叠覆盖
+        offset += note_lenght
+        print(offset)
+
+    # 创建音乐流(stream)
+    midi_stream = stream.Stream(output_notes_1)  # 把上面的循环输出结果传到流
+    # 写入midi文件
+    midi_stream.write('midi', fp='./bach_output/output_add_rythem.mid')  # 最终输出的文件名是output.mid，格式是mid
+
+
 
 # 新增引數 note_Number
 def produce_notes(model, network_input, pitch_names, num_pitch, note_Number=100):
@@ -196,9 +295,9 @@ def produce(weights='best'):
     # 打開最佳的訓練結果或是選擇使用的檔案
     hdf5_file = ""
     if weights == 'best':
-        hdf5_file = glob.glob('./beethoven_weight/*.hdf5')[-1]
+        hdf5_file = glob.glob('./output_weights/*.hdf5')[-1]
     else:
-        hdf5_file = glob.glob(f'./beethoven_weight/*-{weights}-*.hdf5')[0]
+        hdf5_file = glob.glob(f'./output_weights/*-{weights}-*.hdf5')[0]
     print(hdf5_file)
 
     with open('data/notes', 'rb') as filepath:

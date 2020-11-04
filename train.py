@@ -13,7 +13,7 @@ def train():
     model = network_model(network_input, num_pitch)
     # 输入，音符的数量，训练后的参数文件(训练的时候不用写)
 
-    filepath = "./beethoven_weight/weights-{epoch:02d}-{loss:.4f}.hdf5"
+    filepath = "./output_weights/weights-{epoch:03d}-{loss:.4f}.hdf5"
 
     # 用checkpoint(检查点)文件在每一个Epoch结束时保存模型的参数
     # 不怕训练过程中丢失模型参数，当对loss损失满意的时候可以随时停止训练
@@ -29,7 +29,7 @@ def train():
     # callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
     # 用fit方法来训练模型
-    model.fit(network_input, network_output, epochs=100, batch_size=64, callbacks=callbacks_list)
+    model.fit(network_input, network_output, epochs=200, batch_size=64, callbacks=callbacks_list)
     # 输入，标签（衡量预测结果的），轮数，一次迭代的样本数，回调
     # model.save(filepath='./model',save_format='h5')
 
