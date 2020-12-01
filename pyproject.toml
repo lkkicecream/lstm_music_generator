@@ -12,6 +12,8 @@ pretty_midi = "^0.2.9"
 music21 = "^6.3.0"
 matplotlib = "^3.3.3"
 fire = "^0.3.1"
+jupyterlab = "^2.2.9"
+ipykernel = "^5.3.4"
 
 [tool.poetry.dev-dependencies]
 
