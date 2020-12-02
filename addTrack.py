@@ -22,11 +22,14 @@ def addTrack(midi_file, addRhythm:bool=False):
     midi_file = music21.converter.parse(midi_file)
     
     # 將單旋律的所有音符分離出來
-    melody = [element for element in midi_file.recurse() if isinstance(element, music21.note.Note)]
+    melody = [element for element in midi_file.recurse() if isinstance(element, music21.note.Note) or isinstance(element, music21.note.Rest)]
     for note in melody:
-        note = music21.note.Note(note.nameWithOctave)
+        if isinstance(note, music21.note.Note):
+            note = music21.note.Note(note.nameWithOctave)
+    # 不在同個 loop 設長度以確保時間可以被設定
     for note in melody:    
-        note.quarterLength = 0.5
+        if isinstance(note, music21.note.Note):
+            note.quarterLength = 0.5
     print(melody[1].quarterLength)
     melody_part = music21.stream.Part(melody)
     # 增加節奏
@@ -41,7 +44,12 @@ def addTrack(midi_file, addRhythm:bool=False):
     #chords = [music21.chord.Chord(melody[i*b:i*b+b]) for i in range(len(melody) // b)]
     chords = []
     for i in range(len(melody) // b):
-        chords.append(musicTheory.makeChord(melody[i*b:i*b+b], quarterLengt=2))
+        sum = 0
+        for j in range(i,len(melody)):
+            sum += melody[j].quarterLength
+            if sum >= 2:
+                break
+        chords.append(musicTheory.makeChord(melody[i*b:i*b+b], key=music21.key.Key('B-'), quarterLengt=2))
         '''
         #getNotes = melody[i*b:i*b+b]
         getNotes = []
@@ -71,8 +79,10 @@ def addTrack(midi_file, addRhythm:bool=False):
     sc.insert(0, chord_part)
 
     midi_stream = music21.stream.Stream(sc)
-    midi_stream.write('midi', fp='./test_output.mid')
+    midi_stream.write('midi', fp='./a_new.mid')
+    midi_stream.show()
     print('done')
+    os.system('pause')
     # make 
 
 
