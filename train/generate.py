@@ -10,9 +10,9 @@ from utils import *
 
 
 # 以之前所得的最佳参数来生成音乐
-def generate():
+def generate(weight1_path="train/data/weights-50-0.6364.hdf5",weight2_path="train/data/weights-50-0.6364.hdf5"):
     # 加载用于训练神经网络的音乐数据
-    with open('data/notes', 'rb') as filepath:  # 以读的方式打开文件
+    with open('train/data/notes', 'rb') as filepath:  # 以读的方式打开文件
         notes = pickle.load(filepath)
     # 得到所有不重复的音符的名字和数目
     pitch_names = sorted(set(item for item in notes))
@@ -21,8 +21,8 @@ def generate():
     num2_pitch = len(set(notes))
     network_input2, normalized_input2 = prepare_sequences(notes, pitch_names, num2_pitch)
     # 载入之前训练是最好的参数（最小loss），来生成神经网络模型
-    model = network_model(normalized_input, num_pitch, "weights-38-0.8900.hdf5")
-    model2 = network_model(normalized_input2, num2_pitch, "weights-39-0.9241.hdf5")
+    model = network_model(normalized_input, num_pitch, weight1_path)
+    model2 = network_model(normalized_input2, num2_pitch, weight2_path)
 
 
     # 用神经网络来生成音乐数据
