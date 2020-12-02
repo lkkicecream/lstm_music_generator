@@ -11,26 +11,46 @@ class NotMidFile(Exception):
 usage =\
 '''
 Usage:
-    python addTrack.py <midi_file.mid>
+    addTrack.py <source_midi_file.mid> [output_midi_file.mid]
 '''
 
 # beats pre measure
 b = 4
-quarterLengt = 2
+quarterLength = 2
 
-def addTrack(midi_file, addRhythm:bool=False):
+def sort_note(notes):
+    if len(notes) <= 1:
+        return notes
+    
+    pivot = notes.pop(0)
+    larger = [note for note in notes if note.offset >= pivot.offset]
+    smaller = [note for note in notes if note.offset < pivot.offset]
+    return sort_note(smaller) + [pivot] + sort_note(larger)
+
+def addTrack(midi_file, outputName='./output.mid', addRhythm:bool=False):
     midi_file = music21.converter.parse(midi_file)
     
     # 將單旋律的所有音符分離出來
-    melody = [element for element in midi_file.recurse() if isinstance(element, music21.note.Note) or isinstance(element, music21.note.Rest)]
+    melody = [element for element in midi_file.recurse() if isinstance(element, music21.note.Note) or isinstance(element, music21.note.Rest) or isinstance(element, music21.chord.Chord)]
+    melody = sort_note(melody)
     for note in melody:
         if isinstance(note, music21.note.Note):
             note = music21.note.Note(note.nameWithOctave)
+        else:
+            note = music21.note.Rest(quarterLength = 0.5)
+
+    # 判斷調性
+    key = music21.analysis.discrete.analyzeStream(music21.stream.Stream(melody), 'key')
+    print(key)
+
     # 不在同個 loop 設長度以確保時間可以被設定
-    for note in melody:    
-        if isinstance(note, music21.note.Note):
-            note.quarterLength = 0.5
-    print(melody[1].quarterLength)
+    offset = 0
+    for note in melody:
+        if isinstance(note, music21.chord.Chord):
+            for cnote in note:
+                cnote.quarterLength
+        note.quarterLength = 0.5
+
     melody_part = music21.stream.Part(melody)
     # 增加節奏
     '''
@@ -40,16 +60,23 @@ def addTrack(midi_file, addRhythm:bool=False):
             note.offset = beat
     '''
 
-    # 為每 4 拍增加和弦
+    # 為每 2 拍增加和弦
     #chords = [music21.chord.Chord(melody[i*b:i*b+b]) for i in range(len(melody) // b)]
     chords = []
-    for i in range(len(melody) // b):
-        sum = 0
-        for j in range(i,len(melody)):
-            sum += melody[j].quarterLength
-            if sum >= 2:
-                break
-        chords.append(musicTheory.makeChord(melody[i*b:i*b+b], key=music21.key.Key('B-'), quarterLengt=2))
+    notes = []
+    sum = 0
+    for note in melody:
+        sum += note.quarterLength
+        if isinstance(note, music21.chord.Chord):
+            for cNote in note.notes:
+                notes.append(cNote)
+        else:
+            notes.append(note)
+        if sum >= 2 or note == melody[-1]:
+            chords.append(musicTheory.makeChord(notes, key=key, quarterLengt=2))
+            sum = 0
+            notes = []
+        
         '''
         #getNotes = melody[i*b:i*b+b]
         getNotes = []
@@ -66,8 +93,7 @@ def addTrack(midi_file, addRhythm:bool=False):
             note.octave = 3
             pass
         chord.offset = offset
-        offset += quarterLengt
-        # print(chord)
+        offset += quarterLength
     
     chord_part = music21.stream.Part(chords)
     
@@ -78,8 +104,9 @@ def addTrack(midi_file, addRhythm:bool=False):
     sc.insert(0, melody_part)
     sc.insert(0, chord_part)
 
+    # 輸出檔案
     midi_stream = music21.stream.Stream(sc)
-    midi_stream.write('midi', fp='./a_new.mid')
+    midi_stream.write('midi', fp=outputName)
     midi_stream.show()
     print('done')
     os.system('pause')
@@ -88,11 +115,17 @@ def addTrack(midi_file, addRhythm:bool=False):
 
 if __name__ == '__main__':
     try:
+        if(len(argv) < 2):
+            raise IndexError
         midi_files = glob.glob(argv[1])
+        
         if len(midi_files) == 0:
             raise FileNotFoundError('Target file is not existed.')
 
-        addTrack(midi_files[0])
+        if(len(argv) == 2):
+            addTrack(midi_files[0])
+        else:
+            addTrack(midi_files[0], outputName=argv[2])
 
     except IndexError as e:
         print(usage)
