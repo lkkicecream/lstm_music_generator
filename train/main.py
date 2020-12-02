@@ -2,6 +2,14 @@ from generate import generate
 from network import network_model
 from train import train
 from utils import create_music,get_notes
+import fire
+
+'''
+class Train():
+    def train():
+        return train.train()
+
+'''
 
 if __name__ == '__main__':
   fire.Fire({
@@ -11,3 +19,8 @@ if __name__ == '__main__':
       'create_music':create_music,
       'get_notes':get_notes,
   })
+
+'''
+if __name__ == '__main__':
+  fire.Fire(Train)
+'''
